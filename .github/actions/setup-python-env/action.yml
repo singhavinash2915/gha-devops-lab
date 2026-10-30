@@ -1,0 +1,30 @@
+name: Setup Python environment
+description: Set up Python with pip cache and install requirements
+inputs:
+  python-version:
+    description: Python version
+    default: "3.12"
+  requirements:
+    description: Path to requirements file
+    default: requirements.txt
+outputs:
+  python-path:
+    description: Path to the Python interpreter
+    value: ${{ steps.py.outputs.python-path }}
+runs:
+  using: composite
+  steps:
+    - id: py
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+        cache-dependency-path: ${{ inputs.requirements }}
+
+    - name: Install requirements
+      shell: bash
+      env:
+        REQUIREMENTS: ${{ inputs.requirements }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r "$REQUIREMENTS"

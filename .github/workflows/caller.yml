@@ -1,0 +1,29 @@
+name: Caller (uses reusable workflow)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-ci:
+    uses: ./.github/workflows/reusable-python-ci.yml
+    with:
+      python-version: "3.12"
+      run-lint: true
+    secrets: inherit
+
+  report:
+    needs: python-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use the reusable workflow's output
+        env:
+          COVERAGE: ${{ needs.python-ci.outputs.coverage }}
+        run: |
+          echo "Coverage from reusable workflow: ${COVERAGE}%"
+          python3 -c "import sys; sys.exit(0 if float('$COVERAGE') >= 80 else 1)" \
+            || { echo "::error::Coverage ${COVERAGE}% is below 80%"; exit 1; }

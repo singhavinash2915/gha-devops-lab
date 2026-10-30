@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version or image tag to deploy
+        type: string
+        required: true
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: echo "version=${INPUT_VERSION:-${GITHUB_SHA::7}}" >> "$GITHUB_OUTPUT"
+
+  deploy-dev:
+    needs: build
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: dev
+      version: ${{ needs.build.outputs.version }}
+
+  deploy-staging:
+    needs: [build, deploy-dev]
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: staging
+      version: ${{ needs.build.outputs.version }}
+
+  deploy-production:
+    needs: [build, deploy-staging]
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: production
+      version: ${{ needs.build.outputs.version }}

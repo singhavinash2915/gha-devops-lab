@@ -1,0 +1,66 @@
+name: Reusable Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version to test with
+        type: string
+        default: "3.12"
+      working-directory:
+        description: Folder containing requirements.txt
+        type: string
+        default: "."
+      run-lint:
+        type: boolean
+        default: true
+    secrets:
+      SONAR_TOKEN:
+        required: false
+    outputs:
+      coverage:
+        description: Line coverage percentage
+        value: ${{ jobs.ci.outputs.coverage }}
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}   # job-level so step `if:` can test it
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    outputs:
+      coverage: ${{ steps.cov.outputs.percent }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+          cache-dependency-path: ${{ inputs.working-directory }}/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Lint
+        if: inputs.run-lint
+        run: ruff check .
+
+      - name: Test
+        run: python -m pytest --cov=app --cov-report=json
+
+      - name: Extract coverage
+        id: cov
+        run: |
+          pct=$(python -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered'], 1))")
+          echo "percent=$pct" >> "$GITHUB_OUTPUT"
+          echo "### Coverage: ${pct}%" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: SonarQube (only if a token was provided)
+        if: ${{ env.SONAR_TOKEN != '' }}
+        run: echo "A real setup would run the SonarQube scanner here"

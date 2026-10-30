@@ -1,0 +1,36 @@
+name: Deploy to one environment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: https://${{ inputs.environment }}.example.com
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - name: Deploy
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+          VERSION: ${{ inputs.version }}
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          echo "Deploying version $VERSION to $TARGET_ENV ($API_URL)"
+          # real world: helm upgrade --install app ./chart --set image.tag="$VERSION" --atomic
+          echo "### Deployed \`$VERSION\` to **$TARGET_ENV**" >> "$GITHUB_STEP_SUMMARY"
+      - name: Smoke test
+        run: echo "curl -fs \$API_URL/health would run here"

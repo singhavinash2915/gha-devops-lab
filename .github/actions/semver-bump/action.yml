@@ -1,0 +1,25 @@
+name: Semver bump (Python)
+description: Bump a semantic version (major, minor or patch)
+inputs:
+  current:
+    description: Current version, e.g. 1.4.2 or v1.4.2
+    required: true
+  part:
+    description: major | minor | patch
+    default: patch
+outputs:
+  new-version:
+    description: The bumped version (without a v prefix)
+    value: ${{ steps.bump.outputs.new-version }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - id: bump
+      shell: bash
+      env:
+        INPUT_CURRENT: ${{ inputs.current }}
+        INPUT_PART: ${{ inputs.part }}
+      run: python "$GITHUB_ACTION_PATH/bump.py"

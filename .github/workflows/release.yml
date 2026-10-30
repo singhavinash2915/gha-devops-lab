@@ -1,0 +1,46 @@
+name: Release tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      part:
+        description: Which part to bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write   # needed to push a tag
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history + tags for git describe
+
+      - name: Find latest tag
+        id: latest
+        run: echo "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version
+        id: bump
+        uses: ./.github/actions/semver-bump
+        with:
+          current: ${{ steps.latest.outputs.tag }}
+          part: ${{ inputs.part }}
+
+      - name: Create and push tag
+        env:
+          NEW_TAG: v${{ steps.bump.outputs.new-version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEW_TAG" -m "Release $NEW_TAG"
+          git push origin "$NEW_TAG"
+          echo "Created $NEW_TAG" >> "$GITHUB_STEP_SUMMARY"

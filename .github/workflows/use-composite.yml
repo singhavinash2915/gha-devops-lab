@@ -1,0 +1,20 @@
+name: Use composite action
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4      # needed first: local actions live in the repo
+      - id: setup
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: "3.12"
+      - run: echo "Python at ${{ steps.setup.outputs.python-path }}"
+      - run: python -m pytest -q

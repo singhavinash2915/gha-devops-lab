@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+pythonpath = [".", "scripts", ".github/scripts"]
+testpaths = ["tests", ".github/actions/semver-bump"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# Pin the rule set explicitly so a new ruff release can't suddenly fail CI
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "bump", "changed_services", "ecr_cleanup", "gh_report", "orders", "payments"]

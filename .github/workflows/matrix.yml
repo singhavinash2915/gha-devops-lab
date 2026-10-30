@@ -1,0 +1,63 @@
+name: Matrix
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+        exclude:
+          - os: windows-latest
+            python: "3.11"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Test with coverage
+        run: python -m pytest --cov=app --cov-report=xml --junitxml=junit.xml
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.os }}-${{ matrix.python }}
+          path: |
+            coverage.xml
+            junit.xml
+          retention-days: 7
+
+  summary:
+    needs: test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*
+          path: results
+      - name: Write job summary
+        run: |
+          {
+            echo "## Test matrix result: ${{ needs.test.result }}"
+            echo ""
+            echo "| Artifact | Files |"
+            echo "| --- | --- |"
+            for d in results/*/; do
+              echo "| $(basename "$d") | $(ls "$d" | tr '\n' ' ') |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail if any test job failed
+        if: needs.test.result != 'success'
+        run: exit 1
